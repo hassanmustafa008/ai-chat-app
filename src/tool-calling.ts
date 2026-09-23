@@ -2,11 +2,14 @@ import "dotenv/config";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { HumanMessage } from "@langchain/core/messages";
+import {
+  HumanMessage,
+  ToolMessage,
+  BaseMessage,
+} from "@langchain/core/messages";
 
 const getWeather = tool(
   async ({ city }) => {
-    // Fake data for now — we're testing the WIRING, not building a real weather API yet
     const fakeData: Record<string, string> = {
       karachi: "34°C, sunny",
       london: "15°C, rainy",
@@ -31,12 +34,33 @@ const model = new ChatGoogleGenerativeAI({
 const modelWithTools = model.bindTools([getWeather]);
 
 async function main() {
-  const response = await modelWithTools.invoke([
+  const messages: BaseMessage[] = [
     new HumanMessage("Is it raining in London right now?"),
-  ]);
+  ];
 
-  console.log("content:", response.content);
-  console.log("tool_calls:", JSON.stringify(response.tool_calls, null, 2));
+  const response = await modelWithTools.invoke(messages);
+  messages.push(response); // the model's tool-call request itself becomes part of history
+
+  if (response.tool_calls && response.tool_calls.length > 0) {
+    for (const call of response.tool_calls) {
+      console.log(`Executing tool: ${call.name}(${JSON.stringify(call.args)})`);
+
+      const result = await getWeather.invoke(call.args as { city: string });
+
+      messages.push(
+        new ToolMessage({
+          content: result,
+          tool_call_id: call.id!,
+        }),
+      );
+    }
+
+    // Send the tool's result back so the model can produce a real answer
+    const finalResponse = await modelWithTools.invoke(messages);
+    console.log("Final answer:", finalResponse.content);
+  } else {
+    console.log("Direct answer:", response.content);
+  }
 }
 
 main();
