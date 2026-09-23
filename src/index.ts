@@ -6,6 +6,7 @@ import {
   AIMessage,
   BaseMessage
 } from "@langchain/core/messages";
+import * as readline from "node:readline/promises";
 
 const apiKey = process.env.GOOGLE_API_KEY;
 if (!apiKey) {
@@ -18,21 +19,28 @@ const model = new ChatGoogleGenerativeAI({
   temperature: 0.7,
 });
 
+const history: BaseMessage[] = [
+  new SystemMessage("You are a concise, friendly assistant."),
+];
+
 async function main() {
-  const messages: BaseMessage[] = [
-    new SystemMessage("You are a concise assistant. Answer in one sentence."),
-    new HumanMessage("What's the capital of France?"),
-  ];
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-  const response1 = await model.invoke(messages);
-  console.log("AI:", response1.content);
+  console.log("Chat started. Type 'exit' to quit.\n");
 
-  // Append the AI's reply and ask a follow-up that depends on prior context
-  messages.push(new AIMessage(response1.content as string));
-  messages.push(new HumanMessage("What's a famous landmark there?"));
+  while (true) {
+    const userInput = await rl.question("You: ");
+    if (userInput.trim().toLowerCase() === "exit") break;
 
-  const response2 = await model.invoke(messages);
-  console.log("AI:", response2.content);
+    history.push(new HumanMessage(userInput));
+
+    const response = await model.invoke(history);
+    console.log("AI:", response.content, "\n");
+
+    history.push(new AIMessage(response.content as string));
+  }
+
+  rl.close();
 }
 
 main();
