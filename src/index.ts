@@ -14,7 +14,7 @@ if (!apiKey) {
 }
 
 const model = new ChatGoogleGenerativeAI({
-  model: "gemini-3.6-flash",
+  model: "gemini-3.1-flash-lite",
   apiKey: apiKey,
   temperature: 0.7,
 });
@@ -34,10 +34,19 @@ async function main() {
 
     history.push(new HumanMessage(userInput));
 
-    const response = await model.invoke(history);
-    console.log("AI:", response.content, "\n");
+    process.stdout.write("AI: ");
 
-    history.push(new AIMessage(response.content as string));
+    const stream = await model.stream(history);
+    let fullResponse = "";
+
+    for await (const chunk of stream) {
+      const text = chunk.content as string;
+      process.stdout.write(text);
+      fullResponse += text;
+    }
+
+    console.log("\n");
+    history.push(new AIMessage(fullResponse));
   }
 
   rl.close();
