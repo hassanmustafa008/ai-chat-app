@@ -11,15 +11,34 @@ import {
 
 const getWeather = tool(
   async ({ city }) => {
-    const fakeData: Record<string, number> = { karachi: 34, london: 15 };
-    const temp = fakeData[city.toLowerCase()];
-    return temp !== undefined ? `${temp}°C` : "No data for that city";
+    try {
+      const geoRes = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`
+      );
+      const geoData = await geoRes.json();
+      const location = geoData.results?.[0];
+
+      if (!location) {
+        return `Could not find a location named "${city}"`;
+      }
+
+      const { latitude, longitude, name } = location;
+      const weatherRes = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`
+      );
+      const weatherData = await weatherRes.json();
+      const temp = weatherData.current?.temperature_2m;
+
+      return `${temp}°C in ${name}`;
+    } catch (err) {
+      return `Error fetching weather for "${city}": ${(err as Error).message}`;
+    }
   },
   {
     name: "get_weather",
-    description: "Get the current temperature for a given city in Celsius",
+    description: "Get the current real-time temperature for a given city in Celsius",
     schema: z.object({ city: z.string().describe("The city name") }),
-  },
+  }
 );
 
 const multiply = tool(async ({ a, b }) => String(a * b), {
