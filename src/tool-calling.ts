@@ -9,6 +9,25 @@ import {
   AIMessage,
 } from "@langchain/core/messages";
 
+const searchWeb = tool(
+  async ({ query }) => {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: process.env.TAVILY_API_KEY, query, max_results: 3 }),
+    });
+    const data = await res.json();
+    console.log("Tavily search results:", data);
+    return data.results.map((r: any) => `${r.title}: ${r.content}`).join("\n\n");
+  },
+  {
+    name: "search_web",
+    description:
+      "Search the web for current information not available in training data — recent news, current events, or anything after the model's knowledge cutoff",
+    schema: z.object({ query: z.string().describe("The search query") }),
+  }
+);
+
 const getWeather = tool(
   async ({ city }) => {
     try {
@@ -47,7 +66,7 @@ const multiply = tool(async ({ a, b }) => String(a * b), {
   schema: z.object({ a: z.number(), b: z.number() }),
 });
 
-const tools = [getWeather, multiply];
+const tools = [getWeather, multiply, searchWeb];
 const toolsByName = Object.fromEntries(tools.map((t) => [t.name, t]));
 
 const model = new ChatGoogleGenerativeAI({
@@ -88,7 +107,7 @@ async function runAgent(question: string) {
 
 async function main() {
   const answer = await runAgent(
-    "What's the temperature in Karachi multiplied by the temperature in London?",
+    "search the web for who won the most recent Nobel Prize in Physics.",
   );
   console.log("Final answer:", answer);
 }
