@@ -19,8 +19,10 @@
     "@langchain/classic": "^1.0.50",
     "@langchain/core": "^1.2.12",
     "@langchain/google-genai": "^2.3.2",
+    "@langchain/pgvector": "^0.1.0",
     "@langchain/textsplitters": "^1.0.2",
     "dotenv": "^18.0.2",
-    "langchain": "^1.5.12"
+    "langchain": "^1.5.12",
+    "pg": "^8.23.0"
   }
 }
